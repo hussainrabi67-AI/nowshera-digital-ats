@@ -25,10 +25,20 @@ interface NavbarProps {
 
 export function Navbar({ initialProfile }: NavbarProps) {
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
+  const [loading, setLoading] = useState(!initialProfile);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  React.useEffect(() => {
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(() => {
+    router.refresh();
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
