@@ -1,13 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
@@ -33,8 +31,10 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // Force a fresh server request so the authenticated
+    // Supabase session is immediately available to
+    // the server-side Navbar and dashboard.
+    window.location.href = "/dashboard";
   }
 
   return (
@@ -80,6 +80,7 @@ export default function LoginPage() {
               >
                 Password
               </label>
+
               <Link
                 href="/forgot-password"
                 className="text-xs text-blue-600 hover:underline"
