@@ -50,7 +50,7 @@ export default async function RecruiterApplicationDetailPage({
 
   const { application, history, interview } = details;
 
-  // ---------------------------------------------------------
+    // ---------------------------------------------------------
   // AI SUMMARY
   // ---------------------------------------------------------
 
@@ -58,45 +58,60 @@ export default async function RecruiterApplicationDetailPage({
 
   const { data: aiSummary, error: aiSummaryError } = await supabase
     .from("application_ai_summaries")
-    .select(
-      `
-        id,
-        application_id,
-        summary,
-        requirements_found,
-        requirements_not_found,
-        interview_questions,
-        created_at,
-        updated_at
-      `
-    )
+    .select(`
+      id,
+      application_id,
+      summary,
+      requirements_found,
+      requirements_not_found,
+      interview_questions,
+      created_at,
+      updated_at
+    `)
     .eq("application_id", id)
     .maybeSingle();
 
-  // Keep the page usable even if the AI summary is unavailable.
-  if (aiSummaryError) {
-    console.error("AI summary fetch error:", aiSummaryError);
+  console.log("========== AI SUMMARY DEBUG ==========");
+  console.log("APPLICATION ID:", id);
+  console.log("AI SUMMARY:", aiSummary);
+  console.log("AI SUMMARY ERROR:", aiSummaryError);
+  console.log("======================================");
+
+  function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(String);
   }
 
-  const summaryItems = Array.isArray(aiSummary?.summary)
-    ? aiSummary.summary
-    : [];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
 
-  const requirementsFound = Array.isArray(aiSummary?.requirements_found)
-    ? aiSummary.requirements_found
-    : [];
+      if (Array.isArray(parsed)) {
+        return parsed.map(String);
+      }
 
-  const requirementsNotFound = Array.isArray(
-    aiSummary?.requirements_not_found
-  )
-    ? aiSummary.requirements_not_found
-    : [];
+      return [];
+    } catch {
+      return value.trim() ? [value] : [];
+    }
+  }
 
-  const interviewQuestions = Array.isArray(
-    aiSummary?.interview_questions
-  )
-    ? aiSummary.interview_questions
-    : [];
+  return [];
+}
+
+const summaryItems = parseJsonArray(aiSummary?.summary);
+
+const requirementsFound = parseJsonArray(
+  aiSummary?.requirements_found
+);
+
+const requirementsNotFound = parseJsonArray(
+  aiSummary?.requirements_not_found
+);
+
+const interviewQuestions = parseJsonArray(
+  aiSummary?.interview_questions
+);
 
   return (
     <div className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full space-y-8">
