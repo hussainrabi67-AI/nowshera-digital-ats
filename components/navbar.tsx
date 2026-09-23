@@ -134,11 +134,14 @@ export function Navbar({ initialProfile }: NavbarProps) {
                 </div>
 
                 <button
-                  onClick={handleSignOut}
-                  title="Sign Out"
-                  aria-label="Sign Out"
-                  className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
-                >
+  onClick={handleSignOut}
+  title="Sign Out"
+  aria-label="Sign Out"
+  className="px-3 py-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
+>
+  Sign Out
+</button>
+                
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
