@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Profile } from "@/lib/types";
@@ -25,24 +25,53 @@ interface NavbarProps {
 
 export function Navbar({ initialProfile }: NavbarProps) {
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
-  const [loading, setLoading] = useState(!initialProfile);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
-  React.useEffect(() => {
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(() => {
-    router.refresh();
-  });
 
-  return () => subscription.unsubscribe();
-}, []);
+  // Keep Navbar authentication state synchronized immediately
+  useEffect(() => {
+    const loadProfile = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        setProfile(null);
+        return;
+      }
+
+      // Refresh the server-rendered profile after authentication
+      router.refresh();
+    };
+
+    loadProfile();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session?.user) {
+        setProfile(null);
+        return;
+      }
+
+      // Authentication changed — refresh server data immediately
+      router.refresh();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, router]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
     setProfile(null);
+    setMobileMenuOpen(false);
+
+    await supabase.auth.signOut();
+
     router.push("/login");
     router.refresh();
   }
@@ -50,24 +79,72 @@ export function Navbar({ initialProfile }: NavbarProps) {
   const role = profile?.role;
 
   const candidateLinks = [
-    { href: "/jobs", label: "Browse Jobs", icon: Briefcase },
-    { href: "/candidate/dashboard", label: "My Applications", icon: LayoutDashboard },
+    {
+      href: "/jobs",
+      label: "Browse Jobs",
+      icon: Briefcase,
+    },
+    {
+      href: "/candidate/dashboard",
+      label: "My Applications",
+      icon: LayoutDashboard,
+    },
   ];
 
   const recruiterLinks = [
-    { href: "/recruiter/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/recruiter/jobs", label: "Assigned Jobs", icon: Briefcase },
-    { href: "/recruiter/pipeline", label: "Kanban Pipeline", icon: Layers },
-    { href: "/recruiter/interviews", label: "Interviews", icon: Calendar },
+    {
+      href: "/recruiter/dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/recruiter/jobs",
+      label: "Assigned Jobs",
+      icon: Briefcase,
+    },
+    {
+      href: "/recruiter/pipeline",
+      label: "Kanban Pipeline",
+      icon: Layers,
+    },
+    {
+      href: "/recruiter/interviews",
+      label: "Interviews",
+      icon: Calendar,
+    },
   ];
 
   const adminLinks = [
-    { href: "/admin/dashboard", label: "Analytics", icon: LayoutDashboard },
-    { href: "/admin/jobs", label: "Manage Jobs", icon: Briefcase },
-    { href: "/admin/jobs/new", label: "Post Job", icon: PlusCircle },
-    { href: "/admin/applications", label: "Applications", icon: Layers },
-    { href: "/admin/recruiters", label: "Recruiters", icon: Users },
-    { href: "/admin/emails", label: "Email Outbox", icon: Mail },
+    {
+      href: "/admin/dashboard",
+      label: "Analytics",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/admin/jobs",
+      label: "Manage Jobs",
+      icon: Briefcase,
+    },
+    {
+      href: "/admin/jobs/new",
+      label: "Post Job",
+      icon: PlusCircle,
+    },
+    {
+      href: "/admin/applications",
+      label: "Applications",
+      icon: Layers,
+    },
+    {
+      href: "/admin/recruiters",
+      label: "Recruiters",
+      icon: Users,
+    },
+    {
+      href: "/admin/emails",
+      label: "Email Outbox",
+      icon: Mail,
+    },
   ];
 
   const activeLinks =
@@ -77,21 +154,37 @@ export function Navbar({ initialProfile }: NavbarProps) {
       ? recruiterLinks
       : role === "candidate"
       ? candidateLinks
-      : [{ href: "/jobs", label: "Browse Jobs", icon: Briefcase }];
+      : [
+          {
+            href: "/jobs",
+            label: "Browse Jobs",
+            icon: Briefcase,
+          },
+        ];
 
   return (
     <nav className="sticky top-0 z-50 bg-[#0F172A] text-white border-b border-slate-800 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+
           {/* Brand Logo */}
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 font-bold text-lg tracking-tight"
+            >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center text-white shadow-inner">
                 <Briefcase className="w-5 h-5" />
               </div>
+
               <div className="flex flex-col">
-                <span className="leading-tight text-white font-semibold text-base">Nowshera Digital</span>
-                <span className="text-[10px] text-sky-400 font-medium tracking-wider uppercase">ATS Platform</span>
+                <span className="leading-tight text-white font-semibold text-base">
+                  Nowshera Digital
+                </span>
+
+                <span className="text-[10px] text-sky-400 font-medium tracking-wider uppercase">
+                  ATS Platform
+                </span>
               </div>
             </Link>
           </div>
@@ -100,7 +193,11 @@ export function Navbar({ initialProfile }: NavbarProps) {
           <div className="hidden md:flex items-center gap-1">
             {activeLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+
+              const isActive =
+                pathname === link.href ||
+                pathname.startsWith(link.href + "/");
+
               return (
                 <Link
                   key={link.href}
@@ -118,13 +215,15 @@ export function Navbar({ initialProfile }: NavbarProps) {
             })}
           </div>
 
-          {/* User Section */}
+          {/* Desktop User Section */}
           <div className="hidden md:flex items-center gap-3">
             {profile ? (
               <div className="flex items-center gap-3">
+
                 {/* Role Pill */}
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-slate-800 border border-slate-700">
                   <Shield className="w-3 h-3 text-sky-400" />
+
                   <span
                     className={
                       role === "admin"
@@ -138,21 +237,27 @@ export function Navbar({ initialProfile }: NavbarProps) {
                   </span>
                 </div>
 
+                {/* User Information */}
                 <div className="text-right">
-                  <div className="text-sm font-medium text-slate-100">{profile.full_name || profile.email}</div>
-                  <div className="text-xs text-slate-400">{profile.email}</div>
+                  <div className="text-sm font-medium text-slate-100">
+                    {profile.full_name || profile.email}
+                  </div>
+
+                  <div className="text-xs text-slate-400">
+                    {profile.email}
+                  </div>
                 </div>
 
+                {/* Sign Out */}
                 <button
-  onClick={handleSignOut}
-  title="Sign Out"
-  aria-label="Sign Out"
-  className="px-3 py-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
->
-  Sign Out
-</button>
-                
+                  type="button"
+                  onClick={handleSignOut}
+                  title="Sign Out"
+                  aria-label="Sign Out"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
+                >
                   <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
                 </button>
               </div>
             ) : (
@@ -163,6 +268,7 @@ export function Navbar({ initialProfile }: NavbarProps) {
                 >
                   Sign In
                 </Link>
+
                 <Link
                   href="/signup"
                   className="px-4 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm"
@@ -176,11 +282,16 @@ export function Navbar({ initialProfile }: NavbarProps) {
           {/* Mobile Menu Button */}
           <div className="flex md:hidden">
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none"
               aria-label="Toggle Menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
             </button>
           </div>
         </div>
@@ -189,28 +300,43 @@ export function Navbar({ initialProfile }: NavbarProps) {
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-900 px-4 pt-3 pb-5 space-y-2">
+
+          {/* Mobile User */}
           {profile && (
             <div className="p-3 mb-2 rounded-lg bg-slate-800/80 flex items-center justify-between">
               <div>
-                <div className="text-sm font-semibold text-white">{profile.full_name || profile.email}</div>
-                <div className="text-xs text-slate-400">{profile.email}</div>
+                <div className="text-sm font-semibold text-white">
+                  {profile.full_name || profile.email}
+                </div>
+
+                <div className="text-xs text-slate-400">
+                  {profile.email}
+                </div>
               </div>
+
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 text-sky-300 uppercase">
                 {profile.role}
               </span>
             </div>
           )}
 
+          {/* Mobile Navigation */}
           {activeLinks.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+
+            const isActive =
+              pathname === link.href ||
+              pathname.startsWith(link.href + "/");
+
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-base font-medium transition ${
-                  isActive ? "bg-blue-600 text-white" : "text-slate-300 hover:text-white hover:bg-slate-800"
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -219,13 +345,12 @@ export function Navbar({ initialProfile }: NavbarProps) {
             );
           })}
 
+          {/* Mobile Authentication */}
           <div className="pt-3 border-t border-slate-800">
             {profile ? (
               <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleSignOut();
-                }}
+                type="button"
+                onClick={handleSignOut}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-400 hover:bg-slate-800 rounded-lg text-base font-medium"
               >
                 <LogOut className="w-5 h-5" />
@@ -240,6 +365,7 @@ export function Navbar({ initialProfile }: NavbarProps) {
                 >
                   Sign In
                 </Link>
+
                 <Link
                   href="/signup"
                   onClick={() => setMobileMenuOpen(false)}
